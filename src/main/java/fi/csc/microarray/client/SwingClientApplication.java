@@ -84,6 +84,9 @@ import fi.csc.microarray.client.screen.TaskManagerScreen;
 import fi.csc.microarray.client.serverfiles.ServerFile;
 import fi.csc.microarray.client.serverfiles.ServerFileSystemView;
 import fi.csc.microarray.client.serverfiles.ServerFileUtils;
+import fi.csc.microarray.client.session.RemoteSessionsController;
+import fi.csc.microarray.client.session.RemoteSessionsView;
+import fi.csc.microarray.client.session.RemoteSessionsModel;
 import fi.csc.microarray.client.session.UserSession;
 import fi.csc.microarray.client.tasks.Task;
 import fi.csc.microarray.client.tasks.Task.State;
@@ -1818,38 +1821,43 @@ public class SwingClientApplication extends ClientApplication {
 
 	public void manageRemoteSessions() {
 		
-		final JFileChooser fileChooser = getSessionManagementFileChooser();
-		int ret = fileChooser.showOpenDialog(this.getMainFrame());
-
-		// user has selected a file
-		if (ret == JFileChooser.APPROVE_OPTION) {
-			File selectedFile = fileChooser.getSelectedFile();
-			String filename = selectedFile.getPath().substring(ServerFile.SERVER_SESSION_ROOT_FOLDER.length()+1);
-			String sessionUuid = null;
-			
-			try {
-				@SuppressWarnings("unchecked")
-				List<DbSession> sessions = (List<DbSession>)fileChooser.getClientProperty("sessions");
-				sessionUuid = getSessionManager().getSessionUuid(sessions, filename);
-				if (sessionUuid == null) {
-					throw new RuntimeException("session not found");
-				}
-			} catch (Exception e) {
-				throw new RuntimeException("internal error: URL or name from save dialog was invalid"); // should never happen
-			}
-			
-			try {
-				// remove selected session
-				if (getSessionManager().removeRemoteSession(sessionUuid)) {			
-					// confirm to user
-					DialogInfo info = new DialogInfo(Severity.INFO, "Remove successful", "Session " + selectedFile.getName() + " removed successfully.", "", Type.MESSAGE);
-					ChipsterDialog.showDialog(this, info, DetailsVisibility.DETAILS_ALWAYS_HIDDEN, true);
-				}
-
-			} catch (JMSException e) {
-				reportException(e);
-			}
-		}
+		RemoteSessionsModel model = new RemoteSessionsModel();
+		RemoteSessionsController controller = new RemoteSessionsController(model);
+		RemoteSessionsView remoteSessionsView = new RemoteSessionsView(controller, model);
+		
+		
+//		final JFileChooser fileChooser = getSessionManagementFileChooser();
+//		int ret = fileChooser.showOpenDialog(this.getMainFrame());
+//
+//		// user has selected a file
+//		if (ret == JFileChooser.APPROVE_OPTION) {
+//			File selectedFile = fileChooser.getSelectedFile();
+//			String filename = selectedFile.getPath().substring(ServerFile.SERVER_SESSION_ROOT_FOLDER.length()+1);
+//			String sessionUuid = null;
+//			
+//			try {
+//				@SuppressWarnings("unchecked")
+//				List<DbSession> sessions = (List<DbSession>)fileChooser.getClientProperty("sessions");
+//				sessionUuid = getSessionManager().getSessionUuid(sessions, filename);
+//				if (sessionUuid == null) {
+//					throw new RuntimeException("session not found");
+//				}
+//			} catch (Exception e) {
+//				throw new RuntimeException("internal error: URL or name from save dialog was invalid"); // should never happen
+//			}
+//			
+//			try {
+//				// remove selected session
+//				if (getSessionManager().removeRemoteSession(sessionUuid)) {			
+//					// confirm to user
+//					DialogInfo info = new DialogInfo(Severity.INFO, "Remove successful", "Session " + selectedFile.getName() + " removed successfully.", "", Type.MESSAGE);
+//					ChipsterDialog.showDialog(this, info, DetailsVisibility.DETAILS_ALWAYS_HIDDEN, true);
+//				}
+//
+//			} catch (JMSException e) {
+//				reportException(e);
+//			}
+//		}
 	}
 
 	private void enableKeyboardShortcuts() {
