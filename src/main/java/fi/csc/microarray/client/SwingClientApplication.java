@@ -82,11 +82,7 @@ import fi.csc.microarray.client.screen.Screen;
 import fi.csc.microarray.client.screen.ShowSourceScreen;
 import fi.csc.microarray.client.screen.TaskManagerScreen;
 import fi.csc.microarray.client.serverfiles.ServerFile;
-import fi.csc.microarray.client.serverfiles.ServerFileSystemView;
-import fi.csc.microarray.client.serverfiles.ServerFileUtils;
-import fi.csc.microarray.client.session.RemoteSessionsController;
-import fi.csc.microarray.client.session.RemoteSessionsView;
-import fi.csc.microarray.client.session.RemoteSessionsModel;
+import fi.csc.microarray.client.session.RemoteSessionChooserFactory;
 import fi.csc.microarray.client.session.UserSession;
 import fi.csc.microarray.client.tasks.Task;
 import fi.csc.microarray.client.tasks.Task.State;
@@ -471,9 +467,7 @@ public class SwingClientApplication extends ClientApplication {
 	
 	private String windowTitleJobPrefix = null;
 	private String windowTitleBlockingPrefix = null;
-	private JFileChooser remoteSessionFileChooser;
 	private JFileChooser localSessionFileChooser;
-	private JFileChooser exampleSessionFileChooser;
 
 	public void updateWindowTitleJobCount(Integer jobCount) {
 		windowTitleJobPrefix = jobCount > 0 ? jobCount + " tasks / " : null;
@@ -1391,62 +1385,19 @@ public class SwingClientApplication extends ClientApplication {
 		return importExportFileChooser;
 	}
 
-	private JFileChooser getSessionManagementFileChooser() throws RuntimeException {
-
-		JFileChooser sessionFileChooser = null;
-
-		try {
-			// fetch current sessions to show in the dialog and create it
-			sessionFileChooser = populateFileChooserFromServer();
-
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-
-		// hide buttons that we don't need
-		ServerFileUtils.hideJFileChooserButtons(sessionFileChooser);
-
-		// tune GUI
-		sessionFileChooser.setDialogTitle("Manage");
-		sessionFileChooser.setApproveButtonText("Remove");
-
-		return sessionFileChooser;
-	}
-
-	private JFileChooser populateFileChooserFromServer() throws JMSException, Exception, MalformedURLException {
-		JFileChooser sessionFileChooser;
-		List<DbSession> sessions = super.getSessionManager().listRemoteSessions();
-		ServerFileSystemView view = ServerFileSystemView.parseFromPaths(ServerFile.SERVER_SESSION_ROOT_FOLDER, sessions);
-		sessionFileChooser = new JFileChooser(view.getRoot(), view); // we do not need to use ImportUtils.getFixedFileChooser() here
-		sessionFileChooser.putClientProperty("sessions", sessions);
-		sessionFileChooser.setMultiSelectionEnabled(false);
-		fixFileChooserFontSize(sessionFileChooser);
-		return sessionFileChooser;
-	}
-
 	private JFileChooser getSessionFileChooser(boolean remote, boolean openExampleDir) throws MalformedURLException, JMSException, Exception {
 		
 		if (openExampleDir) {
-			if (exampleSessionFileChooser == null) {
-
-				exampleSessionFileChooser = populateFileChooserFromServer();
-				exampleSessionFileChooser.setSelectedFile(new File("Session name"));
-				ServerFileUtils.hideJFileChooserButtons(exampleSessionFileChooser);
-			}
-			ServerFileSystemView view = (ServerFileSystemView) exampleSessionFileChooser.getFileSystemView();
-			exampleSessionFileChooser.setCurrentDirectory(view.getExampleSessionDir());				
-			return exampleSessionFileChooser;
+			
+			return new RemoteSessionChooserFactory(this).getExampleSessionChooser();
 			
 		} else if (remote) {
-			if (remoteSessionFileChooser == null) {
-				
-				remoteSessionFileChooser = populateFileChooserFromServer();
-				remoteSessionFileChooser.setSelectedFile(new File("Session name"));
-				ServerFileUtils.hideJFileChooserButtons(remoteSessionFileChooser);
-			}
-			return remoteSessionFileChooser;
+			
+			return new RemoteSessionChooserFactory(this).getRemoteSessionChooser();
 
 		} else {
+			// don't create new local file choosers, because that would reset
+			// the selected directory
 			if (localSessionFileChooser == null) {
 
 				localSessionFileChooser = ImportUtils.getFixedFileChooser();
@@ -1821,43 +1772,21 @@ public class SwingClientApplication extends ClientApplication {
 
 	public void manageRemoteSessions() {
 		
-		RemoteSessionsModel model = new RemoteSessionsModel();
-		RemoteSessionsController controller = new RemoteSessionsController(model);
-		RemoteSessionsView remoteSessionsView = new RemoteSessionsView(controller, model);
+//		RemoteSessionsModel model = new RemoteSessionsModel();
+//		RemoteSessionsView view = new RemoteSessionsView(this.getMainFrame());
+//		RemoteSessionsController controller = new RemoteSessionsController(getSessionManager(), this);
+//		controller.setView(view);
+//		try {
+//			controller.setModel(model);
+//		} catch (JMSException e) {
+//			reportException(e);
+//		}		
 		
+		final JFileChooser fileChooser = new RemoteSessionChooserFactory(this).getManagementChooser();							
 		
-//		final JFileChooser fileChooser = getSessionManagementFileChooser();
-//		int ret = fileChooser.showOpenDialog(this.getMainFrame());
-//
-//		// user has selected a file
-//		if (ret == JFileChooser.APPROVE_OPTION) {
-//			File selectedFile = fileChooser.getSelectedFile();
-//			String filename = selectedFile.getPath().substring(ServerFile.SERVER_SESSION_ROOT_FOLDER.length()+1);
-//			String sessionUuid = null;
-//			
-//			try {
-//				@SuppressWarnings("unchecked")
-//				List<DbSession> sessions = (List<DbSession>)fileChooser.getClientProperty("sessions");
-//				sessionUuid = getSessionManager().getSessionUuid(sessions, filename);
-//				if (sessionUuid == null) {
-//					throw new RuntimeException("session not found");
-//				}
-//			} catch (Exception e) {
-//				throw new RuntimeException("internal error: URL or name from save dialog was invalid"); // should never happen
-//			}
-//			
-//			try {
-//				// remove selected session
-//				if (getSessionManager().removeRemoteSession(sessionUuid)) {			
-//					// confirm to user
-//					DialogInfo info = new DialogInfo(Severity.INFO, "Remove successful", "Session " + selectedFile.getName() + " removed successfully.", "", Type.MESSAGE);
-//					ChipsterDialog.showDialog(this, info, DetailsVisibility.DETAILS_ALWAYS_HIDDEN, true);
-//				}
-//
-//			} catch (JMSException e) {
-//				reportException(e);
-//			}
-//		}
+		fileChooser.showOpenDialog(this.getMainFrame());
+		
+		// remove implemented in accessory
 	}
 
 	private void enableKeyboardShortcuts() {

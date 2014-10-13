@@ -254,7 +254,9 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 
 			} else if (msg instanceof CommandMessage && CommandMessage.COMMAND_LIST_SESSIONS.equals(((CommandMessage)msg).getCommand())) {
 				handleListSessionsRequest(endpoint, (CommandMessage)msg);
-
+				
+			} else if (msg instanceof CommandMessage && CommandMessage.COMMAND_LIST_STORAGE_USAGE_OF_SESSIONS.equals(((CommandMessage)msg).getCommand())) {
+				handleListStorageUsageOfSessionsRequest(endpoint, (CommandMessage)msg, msg.getUsername());
 			} else {
 				logger.error("message " + msg.getMessageID() + " not understood");
 			}
@@ -262,6 +264,26 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 		} catch (Exception e) {
 			logger.error(e, e);
 		}
+	}
+
+	private void handleListStorageUsageOfSessionsRequest(
+			MessagingEndpoint endpoint, CommandMessage msg, String username) throws SQLException, JMSException {
+		
+		CommandMessage requestMessage = (CommandMessage) msg;
+		CommandMessage reply;
+
+		List<String>[] sessions;
+		sessions = metadataServer.getStorageUsageOfSessions(username);
+
+		reply = new CommandMessage();
+		reply.addNamedParameter(ParameterMessage.PARAMETER_USERNAME_LIST, Strings.delimit(sessions[0], "\t"));
+		reply.addNamedParameter(ParameterMessage.PARAMETER_SESSION_NAME_LIST, Strings.delimit(sessions[1], "\t"));
+		reply.addNamedParameter(ParameterMessage.PARAMETER_SIZE_LIST, Strings.delimit(sessions[2], "\t"));
+		reply.addNamedParameter(ParameterMessage.PARAMETER_DATE_LIST, Strings.delimit(sessions[3], "\t"));
+		reply.addNamedParameter(ParameterMessage.PARAMETER_SESSION_UUID_LIST, Strings.delimit(sessions[4], "\t"));
+		reply.addNamedParameter(ParameterMessage.PARAMETER_QUOTA, "" + defaultUserQuota * 1024 * 1024);
+		
+		jmsEndpoint.replyToMessage(requestMessage, reply);
 	}
 
 	@Deprecated
@@ -535,7 +557,7 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 		String username = requestMessage.getUsername();
 		String name = requestMessage.getNamedParameter(ParameterMessage.PARAMETER_SESSION_NAME);		
 		String sessionId = AuthorisedUrlRepository.stripCompressionSuffix(requestMessage.getNamedParameter(ParameterMessage.PARAMETER_SESSION_UUID));
-		List<String> fileIds = Arrays.asList(requestMessage.getNamedParameter(ParameterMessage.PARAMETER_FILE_ID_LIST).split("\t"));
+		List<String> fileIds = Arrays.asList(requestMessage.getNamedParameterAsArray(ParameterMessage.PARAMETER_FILE_ID_LIST));
 		
 		ChipsterMessage reply; 
 		try {
@@ -733,7 +755,7 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 			}
 		}		
 	}
-
+	
 	private class FilebrokerAdminMessageListener implements MessagingListener {
 
 		/* (non-Javadoc)
@@ -763,21 +785,8 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 				// get sessions for user
 				else if (msg instanceof CommandMessage && CommandMessage.COMMAND_LIST_STORAGE_USAGE_OF_SESSIONS.equals(((CommandMessage)msg).getCommand())) {
 					String username = ((ParameterMessage)msg).getNamedParameter("username");
-					CommandMessage requestMessage = (CommandMessage) msg;
-					CommandMessage reply;
-
-					List<String>[] sessions;
-					sessions = metadataServer.getStorageUsageOfSessions(username);
-
-					reply = new CommandMessage();
-					reply.addNamedParameter(ParameterMessage.PARAMETER_USERNAME_LIST, Strings.delimit(sessions[0], "\t"));
-					reply.addNamedParameter(ParameterMessage.PARAMETER_SESSION_NAME_LIST, Strings.delimit(sessions[1], "\t"));
-					reply.addNamedParameter(ParameterMessage.PARAMETER_SIZE_LIST, Strings.delimit(sessions[2], "\t"));
-					reply.addNamedParameter(ParameterMessage.PARAMETER_DATE_LIST, Strings.delimit(sessions[3], "\t"));
-					reply.addNamedParameter(ParameterMessage.PARAMETER_SESSION_UUID_LIST, Strings.delimit(sessions[4], "\t"));
-					jmsEndpoint.replyToMessage(requestMessage, reply);
+					handleListStorageUsageOfSessionsRequest(jmsEndpoint, (CommandMessage)msg, username);
 				}
-
 
 				// get sessions for session name
 				else if (msg instanceof CommandMessage && CommandMessage.COMMAND_GET_STORAGE_USAGE_TOTALS.equals(((CommandMessage)msg).getCommand())) {

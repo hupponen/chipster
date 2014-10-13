@@ -13,6 +13,7 @@ import java.util.List;
 import javax.jms.JMSException;
 
 import fi.csc.microarray.config.DirectoryLayout;
+import fi.csc.microarray.messaging.admin.StorageAdminAPI.StorageEntryMessageListener;
 import fi.csc.microarray.util.IOUtils.CopyProgressListener;
 
 /**
@@ -116,6 +117,13 @@ public class SimpleFileBrokerClient implements FileBrokerClient {
 	@Override
 	public Long getContentLength(String dataId) throws IOException,
 			JMSException, FileBrokerException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public StorageEntryMessageListener getStorageUsage() throws JMSException,
+			InterruptedException {
 		// TODO Auto-generated method stub
 		return null;
 	}

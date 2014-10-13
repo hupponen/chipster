@@ -13,6 +13,7 @@ import org.joda.time.format.ISODateTimeFormat;
 
 import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
 import fi.csc.microarray.exception.MicroarrayException;
+import fi.csc.microarray.messaging.MessagingTopic;
 import fi.csc.microarray.messaging.SuccessMessageListener;
 import fi.csc.microarray.messaging.TempTopicMessagingListenerBase;
 import fi.csc.microarray.messaging.Topics;
@@ -50,7 +51,8 @@ public class StorageAdminAPI extends ServerAdminAPI {
 	public List<StorageEntry> listStorageUsageOfSessions(String username) throws JMSException, InterruptedException {
 		
 		StorageEntryMessageListener listener = new StorageEntryMessageListener();
-		return listener.query(username);
+		listener.query(getTopic(), username);
+		return listener.getEntries();
 	}
 
 	public List<StorageAggregate> listStorageUsageOfUsers() throws JMSException, InterruptedException {
@@ -119,22 +121,35 @@ public class StorageAdminAPI extends ServerAdminAPI {
 	}
 	
 	
-	private class StorageEntryMessageListener extends TempTopicMessagingListenerBase {
+	public static class StorageEntryMessageListener extends TempTopicMessagingListenerBase {
 
 		private List<StorageEntry> entries;
+		private long quota;
 		private CountDownLatch latch;
 		
-		public List<StorageEntry> query(String username) throws JMSException, InterruptedException {
+		public void query(MessagingTopic topic, String username) throws JMSException, InterruptedException {
 			
-			latch = new CountDownLatch(1);
-			
-			CommandMessage request = new CommandMessage(CommandMessage.COMMAND_LIST_STORAGE_USAGE_OF_SESSIONS);
-			request.addNamedParameter("username", username);
+			try {
+				latch = new CountDownLatch(1);
 
-			getTopic().sendReplyableMessage(request, this);			
-			latch.await(TIMEOUT, TIMEOUT_UNIT);
-			
+				CommandMessage request = new CommandMessage(CommandMessage.COMMAND_LIST_STORAGE_USAGE_OF_SESSIONS);
+				if (username != null) {
+					request.addNamedParameter("username", username);
+				}
+
+				topic.sendReplyableMessage(request, this);			
+				latch.await(TIMEOUT, TIMEOUT_UNIT);
+			} finally {
+				cleanUp();
+			}
+		}
+		
+		public List<StorageEntry> getEntries() {	
 			return entries;
+		}
+		
+		public long getQuota() {
+			return quota;
 		}
 
 		public void onChipsterMessage(ChipsterMessage msg) {
@@ -145,7 +160,7 @@ public class StorageAdminAPI extends ServerAdminAPI {
 			String sizesString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_SIZE_LIST);
 			String datesString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_DATE_LIST);
 			String idsString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_SESSION_UUID_LIST);
-
+			String quotaString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_QUOTA);
 			
 			String[] usernames = usernamesString.split("\t");
 			String[] names = namesString.split("\t");
@@ -165,6 +180,8 @@ public class StorageAdminAPI extends ServerAdminAPI {
 				entry.setID(ids[i]);
 				entries.add(entry);
 			}
+			
+			quota = Long.parseLong(quotaString);
 
 			latch.countDown();
 		}

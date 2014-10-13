@@ -6,6 +6,7 @@ import java.beans.PropertyChangeEvent;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -26,6 +27,7 @@ import fi.csc.microarray.filebroker.DbSession;
 import fi.csc.microarray.filebroker.DerbyMetadataServer;
 import fi.csc.microarray.filebroker.FileBrokerClient;
 import fi.csc.microarray.filebroker.QuotaExceededException;
+import fi.csc.microarray.messaging.admin.StorageAdminAPI.StorageEntryMessageListener;
 import fi.csc.microarray.security.CryptoKey;
 import fi.csc.microarray.util.Exceptions;
 import fi.csc.microarray.util.Files;
@@ -66,6 +68,7 @@ public class SessionManager {
 	private DataManager dataManager;
 	private FileBrokerClient fileBrokerClient;
 	private SessionManagerListener listener;
+	private ArrayList<SessionChangeListener> listeners = new ArrayList<>();
 	
 	/**
 	 * @param dataManager
@@ -270,6 +273,10 @@ public class SessionManager {
 
 	public List<DbSession> listRemoteSessions() throws JMSException {
 		return fileBrokerClient.listRemoteSessions();
+	}
+	
+	public StorageEntryMessageListener getStorageUsage() throws JMSException, InterruptedException {
+		return fileBrokerClient.getStorageUsage();
 	}
 
 	public void setSession(File sessionFile, String sessionId) throws MalformedURLException, JMSException {
@@ -566,5 +573,16 @@ public class SessionManager {
 		}
 		
 		return mostRecentDeadSignalFile != null ? mostRecentDeadSignalFile.getParentFile() : null;
+	}
+
+
+	public void addSessionChangeListener(SessionChangeListener listener) {
+		listeners.add(listener);
+	}
+
+
+	public void removeSessionsChangeListener(
+			RemoteSessionsController remoteSessionsController) {
+		listeners.remove(this);
 	}	
 }
