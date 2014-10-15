@@ -8,6 +8,8 @@ import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.jms.JMSException;
 import javax.swing.JButton;
@@ -16,6 +18,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.LineBorder;
 
@@ -23,7 +26,6 @@ import net.miginfocom.swing.MigLayout;
 import fi.csc.microarray.client.SwingClientApplication;
 import fi.csc.microarray.client.operation.ColoredCircleIcon;
 import fi.csc.microarray.client.serverfiles.ServerFile;
-import fi.csc.microarray.client.serverfiles.ServerFileSystemView;
 import fi.csc.microarray.constants.VisualConstants;
 import fi.csc.microarray.filebroker.DbSession;
 import fi.csc.microarray.messaging.admin.StorageAdminAPI.StorageEntryMessageListener;
@@ -61,6 +63,7 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 	private JLabel manageTitle = new JLabel("Selected session");
 	private JLabel diskUsageTitle = new JLabel("Disk usage");
 	private JLabel disclaimerTitle = new JLabel("No backups");
+	private JLabel previewLabel = new JLabel(" ");
 	private JButton removeButton = new JButton("Remove");
 	private JProgressBar quotaBar = new JProgressBar();
 	private JTextArea disclaimerText = new JTextArea(disclaimer);
@@ -71,6 +74,8 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 	private JFileChooser fileChooser;
 	private SessionManager sessionManager;
 	private SwingClientApplication app;
+	
+	private ExecutorService previewExecutor = Executors.newFixedThreadPool(1);
 
 	public RemoteSessionAccessory(JFileChooser fileChooser, SessionManager sessionManager, SwingClientApplication app) {
 		
@@ -121,6 +126,7 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 		disclaimerTitle.setForeground(UIManager.getColor("TitledBorder.titleColor"));
 
 		panel.add(manageTitle, "span, wrap");
+		panel.add(previewLabel, "skip, wrap");
 		panel.add(removeButton, "sizegroup actions, skip, growx 0, wrap");
 		
 		panel.add(diskUsageTitle, "span, wrap");
@@ -185,11 +191,7 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 
 	private void update() {
 		try {
-			ServerFileSystemView view = RemoteSessionChooserFactory.updateRemoteSessions(sessionManager, fileChooser);
-			
-			// trigger fileChooser to update its session list 
-			fileChooser.setCurrentDirectory(null);
-			fileChooser.setCurrentDirectory(view.getRoot());
+			RemoteSessionChooserFactory.updateRemoteSessions(sessionManager, fileChooser);
 
 			StorageEntryMessageListener reply = sessionManager.getStorageUsage();
 			
@@ -217,20 +219,56 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
+		
+		try {
+			if (JFileChooser.SELECTED_FILE_CHANGED_PROPERTY
+					.equals(evt.getPropertyName())) {
 
-		if (JFileChooser.SELECTED_FILE_CHANGED_PROPERTY
-				.equals(evt.getPropertyName())) {
+				String uuid = getSelectedSession();
+				removeButton.setEnabled(uuid != null);
+				updateSessionPreview(uuid);
+			}	    
+		} catch (MalformedURLException e) {
+			app.reportException(e);
+		}
+	}
 
-			try {
-				removeButton.setEnabled(getSelectedSession() != null);
-			} catch (MalformedURLException e) {
-				app.reportException(e);
+	private void updateSessionPreview(final String uuid) {
+		previewExecutor.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				try {
+					updateGui(" ");
+					
+					if (uuid != null) {
+						String preview = " ";
+
+						StorageEntryMessageListener reply = sessionManager.getStorageUsage();
+						for (StorageEntry session : reply.getEntries()) {						
+							if (uuid.equals(session.getID())) {
+								preview += Strings.toHumanReadable(session.getSize(), true, true) + "B, ";
+								preview += session.getDate();
+							}
+						}
+
+						updateGui(preview);
+					}
+					
+				} catch (Exception e) {
+					app.reportException(e);
+				}
 			}
-		} 
-//		else if (JFileChooser.SELECTED_FILES_CHANGED_PROPERTY.equals(
-//				evt.getPropertyName())) {
-//
-//			File[] files = fileChooser.getSelectedFiles();
-//		}		    
+
+			private void updateGui(final String preview) {
+				SwingUtilities.invokeLater(new Runnable() {
+					
+					@Override
+					public void run() {
+						previewLabel.setText(preview);
+					}
+				});				
+			}
+		});
 	}
 }

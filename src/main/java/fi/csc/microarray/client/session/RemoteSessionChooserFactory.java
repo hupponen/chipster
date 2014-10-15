@@ -35,10 +35,14 @@ public class RemoteSessionChooserFactory {
 	public static ServerFileSystemView updateRemoteSessions(SessionManager sessionManager,
 			JFileChooser sessionFileChooser) throws JMSException, MalformedURLException {
 		List<DbSession> sessions = sessionManager.listRemoteSessions();
-		ServerFileSystemView view = ServerFileSystemView.parseFromPaths(ServerFile.SERVER_SESSION_ROOT_FOLDER, sessions);
+		ServerFileSystemView view = ServerFileSystemView.parseFromPaths(ServerFile.SERVER_SESSION_ROOT_FOLDER, sessions);		
 		sessionFileChooser.setFileSystemView(view);
-		sessionFileChooser.setCurrentDirectory(view.getRoot());
+		// without this the GUI doesn't update when a session is removed
+		sessionFileChooser.setCurrentDirectory(null);
+		sessionFileChooser.setCurrentDirectory(view.getRoot());		
 		sessionFileChooser.putClientProperty("sessions", sessions);
+		// without this removed sessions are shown after folder change
+		sessionFileChooser.updateUI();
 		return view;
 	}
 
