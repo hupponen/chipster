@@ -6,6 +6,7 @@ import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.server.ssl.SslSocketConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
 import fi.csc.microarray.config.Configuration;
@@ -17,12 +18,14 @@ public class JettyFileServer {
 	private Server jettyInstance;
 	private AuthorisedUrlRepository urlRepository;
 	private DerbyMetadataServer metadataServer;
+	private DiskCleanUp cacheCleanUp;
 	
-	public JettyFileServer(AuthorisedUrlRepository urlRepository, DerbyMetadataServer metadataServer) {
+	public JettyFileServer(AuthorisedUrlRepository urlRepository, DerbyMetadataServer metadataServer, DiskCleanUp cacheCleanUp) {
 		this.urlRepository = urlRepository;
 		this.metadataServer = metadataServer;
+		this.cacheCleanUp = cacheCleanUp;
 	}
-	
+
 	public void start(String resourceBase, int port, String protocol) throws Exception {
 		
 		if (DirectoryLayout.getInstance().getConfiguration().getBoolean("filebroker", "jetty-debug")) {
@@ -33,6 +36,8 @@ public class JettyFileServer {
 		jettyInstance.setThreadPool(new QueuedThreadPool());
 		
 		Connector connector;
+		SslContextFactory contextFactory = null;
+		
 		switch (protocol) {
 		case "http":
 			connector= new SelectChannelConnector();
@@ -40,12 +45,15 @@ public class JettyFileServer {
 			
 		case "https":
 			Configuration configuration = DirectoryLayout.getInstance().getConfiguration();
-			connector = new SslSocketConnector(KeyAndTrustManager.createSslContextFactory(
-					configuration.getString("security", "keystore"),
-					configuration.getString("security", "keypass"), 
-					configuration.getString("security", "keyalias"), 
-					configuration.getString("security", "master-keystore")
-			));
+			
+			String[] protocols = configuration.getString("filebroker", "ssl-protocol-version").split(",");
+			
+			contextFactory = KeyAndTrustManager.createSslContextFactory(
+					configuration.getString("security", "filebroker-keystore"),
+					configuration.getString("security", "storepass"),
+					protocols
+			);
+			connector = new SslSocketConnector(contextFactory);			
 			break;
 			
 		default:
@@ -58,7 +66,7 @@ public class JettyFileServer {
 		ServletContextHandler root = new ServletContextHandler(jettyInstance, "/", false, false);
 		root.getInitParams().put("org.eclipse.jetty.servlet.Default.aliases", "true");
 		root.setResourceBase(resourceBase);
-		root.addServlet(new ServletHolder(new RestServlet(urlRepository.getRootUrl(), urlRepository, metadataServer)), "/*");
+		root.addServlet(new ServletHolder(new RestServlet(urlRepository.getRootUrl(), urlRepository, metadataServer, cacheCleanUp)), "/*");
 		jettyInstance.start();
 	}
 	

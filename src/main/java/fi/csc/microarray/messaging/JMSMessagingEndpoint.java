@@ -4,17 +4,18 @@
  */
 package fi.csc.microarray.messaging;
 
-import java.security.SecureRandom;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 
 import javax.jms.Connection;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.MapMessage;
 import javax.jms.Session;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.activemq.ActiveMQConnection;
 import org.apache.activemq.ActiveMQConnectionFactory;
@@ -116,33 +117,16 @@ public class JMSMessagingEndpoint implements MessagingEndpoint, MessagingListene
 		// setup keystore if needed
 		if ("ssl".equals(configuration.getString("messaging", "broker-protocol"))) {
 			try {
-				KeyAndTrustManager.initialiseSystem(
-						configuration.getString("security", "keystore"),
-						configuration.getString("security", "keypass"), 
-						configuration.getString("security", "keyalias"), 
-						configuration.getString("security", "master-keystore"));
+				
+				KeyAndTrustManager.initialiseTrustStore();
 			} catch (Exception e) {
 				throw new MicroarrayException("could not access SSL keystore", e);
 			}
 		}
 		
-		String username;
-		String password;
-		try {
-			username = configuration.getString("security", "username");
-			if (username == null || username.trim().length() == 0) {
-				throw new IllegalArgumentException("Username was not available from configuration");
-			}
-
-			password = configuration.getString("security", "password");
-			if (password == null || password.trim().length() == 0) {
-				throw new IllegalArgumentException("Password was not available from configuration");
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("reading authentication information failed: " + e.getMessage());
-		}
-		
-		
+		String username = getUsername(configuration);
+		String password = getPassword(configuration);
+				
 		try {
 			logger.info("connecting to " + brokerUrl);
 			String completeBrokerUrl = brokerUrl;
@@ -171,29 +155,66 @@ public class JMSMessagingEndpoint implements MessagingEndpoint, MessagingListene
 			adminTopic = createTopic(Topics.Name.ADMIN_TOPIC, AccessMode.READ_WRITE); // endpoint reacts to requests from admin-topic
 			adminTopic.setListener(this);
 			logger.debug("endpoint created succesfully");
-		} catch (JMSException e) {
-			throw new MicroarrayException("could not connect to message broker at " + brokerUrl + " (" + e.getMessage() + ")", e);
+			
+		} catch (JMSException e) {			
+			if (e.getCause() instanceof SSLHandshakeException) {								
+				throw new MicroarrayException("server identity cannot be verified or other SSL error when connecting to " + brokerUrl, e);
+			} else {
+				throw new MicroarrayException("could not connect to message broker at " + brokerUrl, e);
+			}
+		}
+	}
+	
+	private static String getPassword(Configuration configuration) {
+
+		try {		
+			String password = configuration.getString("security", "password");
+			if (password == null || password.trim().length() == 0) {
+				throw new IllegalArgumentException("Password was not available from configuration");
+			}
+			return password;
+		} catch (Exception e) {
+			throw new RuntimeException("reading authentication information failed: " + e.getMessage());
 		}
 	}
 
-	private ActiveMQConnectionFactory createConnectionFactory(String username, String password, String completeBrokerUrl) {
-//		ActiveMQConnectionFactory reliableConnectionFactory = new ActiveMQConnectionFactory(username, password, completeBrokerUrl);
+	private static String getUsername(Configuration configuration) {
+		
+		try {
+			String username = configuration.getString("security", "username");
+			if (username == null || username.trim().length() == 0) {
+				throw new IllegalArgumentException("Username was not available from configuration");
+			}
+			return username;
+		} catch (Exception e) {
+			throw new RuntimeException("reading authentication information failed: " + e.getMessage());
+		}
+	}
 
-		// use dummy trust manager
+	public static String getClientTruststore() throws NoSuchAlgorithmException, CertificateException, FileNotFoundException, KeyStoreException, IOException {
+		Configuration configuration = DirectoryLayout.getInstance().getConfiguration();		
+		return KeyAndTrustManager.getClientTrustStore(configuration, getPassword(configuration));
+	}
+
+	private ActiveMQConnectionFactory createConnectionFactory(String username, String password, String completeBrokerUrl) {
+
 		ActiveMQSslConnectionFactory reliableConnectionFactory = new ActiveMQSslConnectionFactory();
 		
-		reliableConnectionFactory.setKeyAndTrustManagers(null, new TrustManager[] {new X509TrustManager() {
-
-			
-			public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-			}
-
-			public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-			}
-
-			public X509Certificate[] getAcceptedIssuers() {
-				return null;
-			}}}, new SecureRandom());
+		// dummy trust manager
+//		reliableConnectionFactory.setKeyAndTrustManagers(null, new TrustManager[] {new X509TrustManager() {
+//
+//			
+//			public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+//			}
+//
+//			public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+//			}
+//
+//			public X509Certificate[] getAcceptedIssuers() {
+//				return null;
+//			}}}, new SecureRandom());
+//		}
+		
 		reliableConnectionFactory.setUserName(username);
 		reliableConnectionFactory.setPassword(password);
 		reliableConnectionFactory.setBrokerURL(completeBrokerUrl);

@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -14,6 +15,7 @@ import javax.jms.JMSException;
 
 import fi.csc.microarray.config.DirectoryLayout;
 import fi.csc.microarray.messaging.admin.StorageAdminAPI.StorageEntryMessageListener;
+import fi.csc.microarray.util.KeyAndTrustManager;
 import fi.csc.microarray.util.IOUtils.CopyProgressListener;
 
 /**
@@ -47,8 +49,9 @@ public class SimpleFileBrokerClient implements FileBrokerClient {
 		List<URL> list = new LinkedList<URL>();
 		
 		try {
-			
-			BufferedReader reader = new BufferedReader(new InputStreamReader(filesListing.openStream()));
+			URLConnection connection = filesListing.openConnection();
+			KeyAndTrustManager.configureSSL(connection);
+			BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 
 			String line;
 			while ((line = reader.readLine()) != null) {
