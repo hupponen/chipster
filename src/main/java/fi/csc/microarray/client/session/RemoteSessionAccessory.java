@@ -28,6 +28,7 @@ import fi.csc.microarray.client.operation.ColoredCircleIcon;
 import fi.csc.microarray.client.serverfiles.ServerFile;
 import fi.csc.microarray.constants.VisualConstants;
 import fi.csc.microarray.filebroker.DbSession;
+import fi.csc.microarray.filebroker.DerbyMetadataServer;
 import fi.csc.microarray.messaging.admin.StorageAdminAPI.StorageEntryMessageListener;
 import fi.csc.microarray.messaging.admin.StorageEntry;
 import fi.csc.microarray.util.Strings;
@@ -157,7 +158,7 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 		String sessionUuid = null;
 		
 		try {
-			sessionUuid = getSelectedSession();
+			sessionUuid = getSelectedSession().getDataId();
 			
 			if (sessionUuid == null) {
 				throw new RuntimeException("session not found");
@@ -178,7 +179,11 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 		}
 	}
 
-	private String getSelectedSession() throws MalformedURLException {
+	/**
+	 * @return UUID of the selected session or null if no session is selected
+	 * @throws MalformedURLException
+	 */
+	private DbSession getSelectedSession() throws MalformedURLException {
 		File selectedFile = fileChooser.getSelectedFile();
 		if (selectedFile == null) {
 			return null;
@@ -186,7 +191,7 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 		String filename = selectedFile.getPath().substring(ServerFile.SERVER_SESSION_ROOT_FOLDER.length()+1);
 		@SuppressWarnings("unchecked")
 		List<DbSession> sessions = (List<DbSession>)fileChooser.getClientProperty("sessions");
-		return sessionManager.getSessionUuid(sessions, filename);
+		return sessionManager.findSessionWithName(sessions, filename);
 	}
 
 	private void update() {
@@ -224,8 +229,15 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 			if (JFileChooser.SELECTED_FILE_CHANGED_PROPERTY
 					.equals(evt.getPropertyName())) {
 
-				String uuid = getSelectedSession();
-				removeButton.setEnabled(uuid != null);
+				DbSession session = getSelectedSession();
+				String uuid = null;
+				String name = null;
+				if (session != null) {
+					uuid = session.getDataId();
+					name = session.getName();
+				}
+				boolean isExampleSession = name != null && name.startsWith(DerbyMetadataServer.DEFAULT_EXAMPLE_SESSION_FOLDER);
+				removeButton.setEnabled(name != null && !isExampleSession);
 				updateSessionPreview(uuid);
 			}	    
 		} catch (MalformedURLException e) {

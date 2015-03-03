@@ -1601,7 +1601,7 @@ public class SwingClientApplication extends ClientApplication {
 						@SuppressWarnings("unchecked")
 						List<DbSession> sessions = (List<DbSession>)fileChooser.getClientProperty("sessions");
 						remoteSessionName = selectedFile.getPath().substring(ServerFile.SERVER_SESSION_ROOT_FOLDER.length()+1);
-						sessionId = getSessionManager().getSessionUuid(sessions, remoteSessionName);
+						sessionId = getSessionManager().findSessionWithName(sessions, remoteSessionName).getDataId();
 						if (sessionId == null) {
 							// user didn't select anything
 							showDialog("Session \"" + selectedFile + "\" not found", Severity.INFO, true);

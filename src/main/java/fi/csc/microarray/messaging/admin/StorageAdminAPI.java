@@ -21,6 +21,7 @@ import fi.csc.microarray.messaging.message.ChipsterMessage;
 import fi.csc.microarray.messaging.message.CommandMessage;
 import fi.csc.microarray.messaging.message.ParameterMessage;
 import fi.csc.microarray.messaging.message.SuccessMessage;
+import fi.csc.microarray.util.Strings;
 
 /**
  * This class uses JMS messages to send data queries and converts result messages to
@@ -162,11 +163,11 @@ public class StorageAdminAPI extends ServerAdminAPI {
 			String idsString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_SESSION_UUID_LIST);
 			String quotaString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_QUOTA);
 			
-			String[] usernames = usernamesString.split("\t");
-			String[] names = namesString.split("\t");
-			String[] sizes = sizesString.split("\t");
-			String[] dates = datesString.split("\t");
-			String[] ids = idsString.split("\t");
+			String[] usernames = Strings.splitUnlessEmpty(usernamesString, "\t");
+			String[] names = Strings.splitUnlessEmpty(namesString, "\t");
+			String[] sizes = Strings.splitUnlessEmpty(sizesString, "\t");
+			String[] dates = Strings.splitUnlessEmpty(datesString, "\t");
+			String[] ids = Strings.splitUnlessEmpty(idsString, "\t");
 			
 			DateTimeFormatter dateTimeFormatter = ISODateTimeFormat.dateTime();
 			entries = new LinkedList<StorageEntry>();
