@@ -38,27 +38,9 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 	private static final Color LOW_DISK_USAGE_COLOR = VisualConstants.COLOR_BLUE_GREEN;
 	private static final Color HIGH_DISK_USAGE_COLOR = VisualConstants.COLOR_ORANGE;
 	
-	private long LOW_LIMIT = 10_000_000_000l;
-	private long HIGH_LIMIT = 100_000_000_000l;
-	
-	private String HUMAN_READABLE_LOW_LIMIT = Strings.toHumanReadable(LOW_LIMIT).trim() + "B";
-	private String HUMAN_READABLE_HIGH_LIMIT = Strings.toHumanReadable(HIGH_LIMIT  ).trim() + "B";
-
 	private String disclaimer = ""
 			+ "Storage here is for working copies and may not be backed up. Store "
 			+ "another copy of all your valuable data elsewhere.";
-	
-	private String lowDiskUsage = ""
-			+ "Store up to " + HUMAN_READABLE_LOW_LIMIT + " as long as you want.";
-
-	private String highDiskUsage = ""
-			+ "Store up to " + HUMAN_READABLE_HIGH_LIMIT + ", but please remove "
-			+ "your data when you aren't anymore actively working on it.";
-	
-//	private String highDiskUsage = ""
-//			+ "Store up to " + HUMAN_READABLE_HIGH_LIMIT + " when you are "
-//			+ "actively working on it. We'll remind you by email if you "
-//			+ "haven't used your data lately.";
 
 	private JPanel panel = new JPanel();
 	private JLabel manageTitle = new JLabel("Selected session");
@@ -70,8 +52,8 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 	private JTextArea disclaimerText = new JTextArea(disclaimer);
 	private JLabel lowDiskUsageIcon = new JLabel(new ColoredCircleIcon(LOW_DISK_USAGE_COLOR));
 	private JLabel highDiskUsageIcon = new JLabel(new ColoredCircleIcon(HIGH_DISK_USAGE_COLOR));	
-	private JTextArea lowDiskUsageText = new JTextArea(lowDiskUsage);
-	private JTextArea highDiskUsageText = new JTextArea(highDiskUsage);
+	private JTextArea lowDiskUsageText = new JTextArea();
+	private JTextArea highDiskUsageText = new JTextArea();
 	private JFileChooser fileChooser;
 	private SessionManager sessionManager;
 	private SwingClientApplication app;
@@ -185,7 +167,7 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 	 */
 	private DbSession getSelectedSession() throws MalformedURLException {
 		File selectedFile = fileChooser.getSelectedFile();
-		if (selectedFile == null) {
+		if (selectedFile == null || !selectedFile.getPath().startsWith(ServerFile.SERVER_SESSION_ROOT_FOLDER)) {
 			return null;
 		}
 		String filename = selectedFile.getPath().substring(ServerFile.SERVER_SESSION_ROOT_FOLDER.length()+1);
@@ -201,6 +183,7 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 			StorageEntryMessageListener reply = sessionManager.getStorageUsage();
 			
 			long quota = reply.getQuota();
+			long quotaWarning = reply.getQuotaWarning();
 			long diskUsage = 0l;
 			
 			for (StorageEntry entry : reply.getEntries()) {
@@ -211,11 +194,31 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 			String humanReadableDiskUsage = Strings.toHumanReadable(diskUsage, true, true);
 			String humanReadableQuota = Strings.toHumanReadable(quota, true, true);
 			quotaBar.setString("Disk usage: " + humanReadableDiskUsage + "B / " +humanReadableQuota + "B");
-			if (diskUsage < LOW_LIMIT) {
+			if (diskUsage < quotaWarning) {
 				quotaBar.setForeground(LOW_DISK_USAGE_COLOR);
 			} else {
 				quotaBar.setForeground(HIGH_DISK_USAGE_COLOR);
 			}
+			
+			String quotaWarningString = Strings.toHumanReadable(quotaWarning, true, true).trim() + "B";
+			String quotaString = Strings.toHumanReadable(quota, true, true).trim() + "B";
+
+			String lowDiskUsage = ""
+					+ "Store up to " + quotaWarningString + " as long as you want.";
+			
+			String highDiskUsage = ""
+					+ "Store up to " + quotaString + ", but please remove "
+					+ "your data when you aren't anymore actively working on it.";
+			
+//			String highDiskUsage = ""
+//			+ "Store up to " + quotaString + " when you are "
+//			+ "actively working on it. We'll remind you by email if you "
+//			+ "haven't used your data lately.";
+			
+			lowDiskUsageText.setText(lowDiskUsage);
+			highDiskUsageText.setText(highDiskUsage);
+			
+			selectedSessionChanged();
 
 		} catch (MalformedURLException | JMSException | InterruptedException e) {
 			app.reportException(e);
@@ -225,21 +228,25 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
 		
-		try {
-			if (JFileChooser.SELECTED_FILE_CHANGED_PROPERTY
-					.equals(evt.getPropertyName())) {
+		if (JFileChooser.SELECTED_FILE_CHANGED_PROPERTY
+				.equals(evt.getPropertyName())) {
 
-				DbSession session = getSelectedSession();
-				String uuid = null;
-				String name = null;
-				if (session != null) {
-					uuid = session.getDataId();
-					name = session.getName();
-				}
-				boolean isExampleSession = name != null && name.startsWith(DerbyMetadataServer.DEFAULT_EXAMPLE_SESSION_FOLDER);
-				removeButton.setEnabled(name != null && !isExampleSession);
-				updateSessionPreview(uuid);
-			}	    
+			selectedSessionChanged();
+		}
+	}
+
+	private void selectedSessionChanged() {
+		try {
+			DbSession session = getSelectedSession();
+			String uuid = null;
+			String name = null;
+			if (session != null) {
+				uuid = session.getDataId();
+				name = session.getName();
+			}
+			boolean isExampleSession = name != null && name.startsWith(DerbyMetadataServer.DEFAULT_EXAMPLE_SESSION_FOLDER);
+			removeButton.setEnabled(name != null && !isExampleSession);
+			updateSessionPreview(uuid);
 		} catch (MalformedURLException e) {
 			app.reportException(e);
 		}

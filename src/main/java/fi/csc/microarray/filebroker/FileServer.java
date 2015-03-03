@@ -77,7 +77,8 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 	
 	private ExampleSessionUpdater exampleSessionUpdater;
 
-	private long defaultUserQuota;
+	private long defaultUserQuota; // MB
+	private long quotaWarning; // percentage of the quota
 
 
 	public static void main(String[] args) {
@@ -107,6 +108,7 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
     		this.host = configuration.getString("filebroker", "url");
     		this.port = configuration.getInt("filebroker", "port");    	
     		this.defaultUserQuota = configuration.getInt("filebroker", "default-user-quota");
+    		this.quotaWarning = configuration.getInt("filebroker", "quota-warning");
     		// initialise filebroker areas
     		this.filebrokerAreas = new FileBrokerAreas(fileRepository, CACHE_PATH, STORAGE_PATH);
     		
@@ -272,7 +274,18 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 		reply.addNamedParameter(ParameterMessage.PARAMETER_SIZE_LIST, Strings.delimit(sessions[2], "\t"));
 		reply.addNamedParameter(ParameterMessage.PARAMETER_DATE_LIST, Strings.delimit(sessions[3], "\t"));
 		reply.addNamedParameter(ParameterMessage.PARAMETER_SESSION_UUID_LIST, Strings.delimit(sessions[4], "\t"));
-		reply.addNamedParameter(ParameterMessage.PARAMETER_QUOTA, "" + defaultUserQuota * 1024 * 1024);
+		
+		long quota;
+		if (defaultUserQuota > 0) {
+			quota = defaultUserQuota * 1024 * 1024;
+		} else {
+			quota = storageRoot.getUsableSpace();
+		}
+		
+		long quotaWarningBytes = (long) (quota * quotaWarning / 100.0);
+		
+		reply.addNamedParameter(ParameterMessage.PARAMETER_QUOTA, "" + quota);
+		reply.addNamedParameter(ParameterMessage.PARAMETER_QUOTA_WARNING, "" + quotaWarningBytes);
 		
 		jmsEndpoint.replyToMessage(requestMessage, reply);
 	}

@@ -126,6 +126,7 @@ public class StorageAdminAPI extends ServerAdminAPI {
 
 		private List<StorageEntry> entries;
 		private long quota;
+		private long quotaWarning;
 		private CountDownLatch latch;
 		
 		public void query(MessagingTopic topic, String username) throws JMSException, InterruptedException {
@@ -152,6 +153,10 @@ public class StorageAdminAPI extends ServerAdminAPI {
 		public long getQuota() {
 			return quota;
 		}
+		
+		public long getQuotaWarning() {
+			return quotaWarning;
+		}
 
 		public void onChipsterMessage(ChipsterMessage msg) {
 			ParameterMessage resultMessage = (ParameterMessage) msg;
@@ -162,6 +167,7 @@ public class StorageAdminAPI extends ServerAdminAPI {
 			String datesString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_DATE_LIST);
 			String idsString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_SESSION_UUID_LIST);
 			String quotaString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_QUOTA);
+			String quotaWarningString = resultMessage.getNamedParameter(ParameterMessage.PARAMETER_QUOTA_WARNING);
 			
 			String[] usernames = Strings.splitUnlessEmpty(usernamesString, "\t");
 			String[] names = Strings.splitUnlessEmpty(namesString, "\t");
@@ -183,6 +189,7 @@ public class StorageAdminAPI extends ServerAdminAPI {
 			}
 			
 			quota = Long.parseLong(quotaString);
+			quotaWarning = Long.parseLong(quotaWarningString);
 
 			latch.countDown();
 		}

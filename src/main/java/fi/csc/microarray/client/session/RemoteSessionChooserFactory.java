@@ -60,9 +60,9 @@ public class RemoteSessionChooserFactory {
 	public JFileChooser getRemoteSessionChooser() throws MalformedURLException, JMSException, Exception {
 		JFileChooser remoteSessionFileChooser = populateFileChooserFromServer();
 		remoteSessionFileChooser.setSelectedFile(new File("Session name"));
-		ServerFileUtils.hideJFileChooserButtons(remoteSessionFileChooser);
 		remoteSessionFileChooser.setPreferredSize(new Dimension(800, 600));
 		remoteSessionFileChooser.setAccessory(new RemoteSessionAccessory(remoteSessionFileChooser, app.getSessionManager(), app));
+		ServerFileUtils.hideJFileChooserButtons(remoteSessionFileChooser);
 			
 		return remoteSessionFileChooser;
 	}
