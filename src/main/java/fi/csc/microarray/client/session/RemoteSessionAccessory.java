@@ -184,11 +184,8 @@ public class RemoteSessionAccessory extends JPanel implements ActionListener, Pr
 			
 			long quota = reply.getQuota();
 			long quotaWarning = reply.getQuotaWarning();
-			long diskUsage = 0l;
+			long diskUsage = reply.getStorageUsage();
 			
-			for (StorageEntry entry : reply.getEntries()) {
-				diskUsage += entry.getSize();
-			}
 			quotaBar.setMaximum((int) (quota / 1024 / 1024));
 			quotaBar.setValue((int) (diskUsage / 1024 / 1024));
 			String humanReadableDiskUsage = Strings.toHumanReadable(diskUsage, true, true);

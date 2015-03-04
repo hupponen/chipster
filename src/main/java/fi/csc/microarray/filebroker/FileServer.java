@@ -267,6 +267,7 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 
 		List<String>[] sessions;
 		sessions = metadataServer.getStorageUsageOfSessions(username);
+		Long storageUsage = metadataServer.getStorageusageOfUser(username);
 
 		reply = new CommandMessage();
 		reply.addNamedParameter(ParameterMessage.PARAMETER_USERNAME_LIST, Strings.delimit(sessions[0], "\t"));
@@ -286,6 +287,7 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
 		
 		reply.addNamedParameter(ParameterMessage.PARAMETER_QUOTA, "" + quota);
 		reply.addNamedParameter(ParameterMessage.PARAMETER_QUOTA_WARNING, "" + quotaWarningBytes);
+		reply.addNamedParameter(ParameterMessage.PARAMETER_SIZE, "" + storageUsage);
 		
 		jmsEndpoint.replyToMessage(requestMessage, reply);
 	}
