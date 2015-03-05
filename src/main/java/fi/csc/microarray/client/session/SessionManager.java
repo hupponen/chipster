@@ -286,7 +286,10 @@ public class SessionManager {
 		} else if (sessionId != null) {
 			String oldValue = currentRemoteSession;
 			currentRemoteSession = sessionId;
-			currentSessionName = findSessionWithUuid(listRemoteSessions(), sessionId).getName();
+			DbSession session = findSessionWithUuid(listRemoteSessions(), sessionId);
+			if (session != null) {
+				currentSessionName = session.getName();
+			}
 			listener.sessionChanged(new SessionChangedEvent(this, "session", oldValue, currentRemoteSession));
 		} else {
 			String oldValue = currentRemoteSession != null? currentRemoteSession : currentSessionName; 
@@ -412,7 +415,13 @@ public class SessionManager {
 			String sessionId = null;
 			
 			if (isRemote) {
-				sessionId = saveStorageSession(remoteSessionName);				
+				sessionId = saveStorageSession(remoteSessionName);
+				
+				Session.getSession().getApplication().showDialog(
+						"Session saved", 
+						"Other users can open this session by pressing Ctrl+Alt+Shift+O and copy-pasting session-id from the details.", 
+						sessionId, Severity.INFO, false);
+				
 			} else {
 				saveSession(localFile);
 			}
