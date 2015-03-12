@@ -107,8 +107,13 @@ public class FileServer extends NodeBase implements MessagingListener, DirectMes
     		this.publicPath = configuration.getString("filebroker", "public-path");
     		this.host = configuration.getString("filebroker", "url");
     		this.port = configuration.getInt("filebroker", "port");    	
-    		this.defaultUserQuota = configuration.getInt("filebroker", "default-user-quota");
+    		this.defaultUserQuota = configuration.getInt("filebroker", "default-user-quota");    		
     		this.quotaWarning = configuration.getInt("filebroker", "quota-warning");
+    		if (defaultUserQuota >= 0) {
+    			logger.info("user quota: " + FileUtils.byteCountToDisplaySize(defaultUserQuota*1024*1024) + ", warning level " + quotaWarning + "%");
+    		} else {
+    			logger.info("no user quota set");
+    		}
     		// initialise filebroker areas
     		this.filebrokerAreas = new FileBrokerAreas(fileRepository, CACHE_PATH, STORAGE_PATH);
     		
