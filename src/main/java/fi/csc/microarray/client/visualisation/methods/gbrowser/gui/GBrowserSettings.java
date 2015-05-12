@@ -52,7 +52,8 @@ public class GBrowserSettings implements ActionListener, RegionListener {
 	public enum CoverageType {
 		NONE ("none"),
 		TOTAL ("total"),
-		STRAND ("strand-specific");
+		DIRECTION ("read direction"),
+		STRAND ("strand");
 		
 		String name;
 		
@@ -180,7 +181,7 @@ public class GBrowserSettings implements ActionListener, RegionListener {
 		coverageTypeLabel.setEnabled(false);
 		settingsPanel.add(coverageTypeLabel, GAPY);
 
-		coverageTypeBox = new JComboBox<CoverageType>(new CoverageType[] {CoverageType.NONE, CoverageType.TOTAL, CoverageType.STRAND});
+		coverageTypeBox = new JComboBox<CoverageType>(new CoverageType[] {CoverageType.NONE, CoverageType.TOTAL, CoverageType.DIRECTION, CoverageType.STRAND});
 		coverageTypeBox.setSelectedItem(CoverageType.TOTAL);
 		coverageTypeBox.setEnabled(false);
 		coverageTypeBox.addActionListener(this);
