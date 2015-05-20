@@ -234,7 +234,8 @@ public class GBrowser {
 				
 			case REFERENCE:
 				// if not shown already as reference sequence
-				if (!getCustomGenome(getGenome()).equals(interpretation)) {
+				// getcustomGenome() is null if user has selected a fasta file, but still selected one of the internal genomes
+				if (getCustomGenome(getGenome()) == null || !getCustomGenome(getGenome()).equals(interpretation)) {
 					IndexedFastaConversion fastaConversion = interpretation.getFastaDataThread(this);								
 					TrackGroup fastaGroup = new SampleTrackGroup(dataView, null, fastaConversion, getTitle(interpretation), this);							
 					analyses.addTrackGroup(fastaGroup);				

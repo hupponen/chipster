@@ -7,7 +7,7 @@ import fi.csc.microarray.client.visualisation.methods.gbrowser.message.Strand;
 public class BamUtils {
 
 	public static Strand getStrand(SAMRecord record, CoverageType coverageType) {
-		if (coverageType == CoverageType.DIRECTION) {
+		if (coverageType == CoverageType.STRAND) {
 			
 			if (record.getReadNegativeStrandFlag()) {
 				return Strand.REVERSE;
@@ -15,7 +15,7 @@ public class BamUtils {
 				return Strand.FORWARD;
 			}
 			
-		} else if (coverageType == CoverageType.STRAND) {
+		} else if (coverageType == CoverageType.STRAND_XS) {
 			
 			char xs = record.getCharacterAttribute("XS");
 			if (xs == '+') {

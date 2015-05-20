@@ -70,7 +70,7 @@ public class SampleTrackGroup extends TrackGroup {
 
 	private GBrowser browser;
 
-	private CoverageType coverageType = CoverageType.DIRECTION;
+	private CoverageType coverageType = CoverageType.STRAND;
 
 
     public SampleTrackGroup(GBrowserView view, Interpretation interpretation,
@@ -98,13 +98,17 @@ public class SampleTrackGroup extends TrackGroup {
     		estimateDataThread.clean();
     	}
     	// no need to clean up listeners, because View.reloadData() will do it
-    	
-        this.detailsDataThread = interpretation.getBamDetailsDataThread(browser, CoverageType.DIRECTION);
-        this.coverageDataThread = interpretation.getBamCoverageDataThread(browser, coverageType);
-        this.estimateDataThread = interpretation.getBamCoverageEstimateDataThread(browser, coverageType);
+    	// null when showing only the reference sequence
+    	if (interpretation != null) {
+    		this.detailsDataThread = interpretation.getBamDetailsDataThread(browser, CoverageType.STRAND);
+    		this.coverageDataThread = interpretation.getBamCoverageDataThread(browser, coverageType);
+    		this.estimateDataThread = interpretation.getBamCoverageEstimateDataThread(browser, coverageType);
+    	}
     }
 
-    public void initialise() {
+    public void initialise() throws URISyntaxException, IOException {
+    	
+    	initDataThreads();
         
         if (detailsDataThread != null) {
 
@@ -242,8 +246,12 @@ public class SampleTrackGroup extends TrackGroup {
 		tracks.clear();
 		
 		if (!isMinimized()) {
-			fullMode = isShowMore();						
-			initialise();
+			fullMode = isShowMore();
+			try {
+				initialise();
+			} catch (URISyntaxException | IOException e) {
+				browser.reportException(e);
+			}
 		}
 	}
 
@@ -255,7 +263,7 @@ public class SampleTrackGroup extends TrackGroup {
 			this.coverage = true;
 			this.coverageEstimate = true;
 			this.strandSpecific = false;
-		} else 	if (type == CoverageType.DIRECTION) {			
+		} else 	if (type == CoverageType.STRAND) {			
 			this.coverage = true;
 			this.coverageEstimate = true;
 			this.strandSpecific = true;
@@ -267,7 +275,7 @@ public class SampleTrackGroup extends TrackGroup {
 			} catch (URISyntaxException | IOException e) {
 				browser.reportException(e);
 			}
-		} else 	if (type == CoverageType.STRAND) {			
+		} else 	if (type == CoverageType.STRAND_XS) {			
 			this.coverage = true;
 			this.coverageEstimate = true;
 			this.strandSpecific = true;
